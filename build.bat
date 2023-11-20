@@ -27,3 +27,6 @@ cmake -S "%PROJECT_ROOT%" -B "%PROJECT_ROOT%\build" -DCMAKE_TOOLCHAIN_FILE="%VCP
 cmake --build "%PROJECT_ROOT%\build" --config Release
 
 :: Optionally, you can run your executable here if applicable
+
+pause
+exit /b 1

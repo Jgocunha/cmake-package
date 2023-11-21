@@ -16,6 +16,16 @@ set(VCPKG_ROOT $ENV{VCPKG_ROOT})
 # Include VCPKG toolchain
 include(${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 
+
+include(FetchContent) # once in the project to include the module
+
+FetchContent_Declare(dynamic-neural-field-composer_LIB
+                     GIT_REPOSITORY https://github.com/Jgocunha/dynamic-field-composer-lite.git
+                     GIT_TAG        origin/main
+)
+FetchContent_MakeAvailable(dynamic-neural-field-composer_LIB)
+
+
 # Add library project
 set(LIB_PROJECT ${CMAKE_PROJECT_NAME}_LIB)
 add_library(${LIB_PROJECT} include/example.h src/example.cpp)
@@ -24,7 +34,7 @@ target_include_directories(${LIB_PROJECT} PRIVATE include)
 # Add executable project
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE include)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${LIB_PROJECT})
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${LIB_PROJECT} dynamic-neural-field-composer_LIB)
 
 # Setup Catch2
 enable_testing()

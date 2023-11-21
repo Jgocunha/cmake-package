@@ -1,83 +1,47 @@
 cmake_minimum_required(VERSION 3.15)
 project(MyCppProject LANGUAGES CXX)
 
-# Set CXX Standard to C++20
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# define library version (update: apparently you can also do it in project()!)
+set(MY_LIBRARY_VERSION_MAJOR 1 CACHE STRING "major version" FORCE)
+set(MY_LIBRARY_VERSION_MINOR 0 CACHE STRING "minor version" FORCE)
+set(MY_LIBRARY_VERSION ${MY_LIBRARY_VERSION_MAJOR}.${MY_LIBRARY_VERSION_MINOR} CACHE STRING "version" FORCE)
 
-# Check whether VCPKG is set up in your system
-if(NOT DEFINED ENV{VCPKG_ROOT})
-  message(FATAL_ERROR "ERROR: This project requires VCPKG.\n")
-endif()
+# some options
+option(MY_LIBRARY_USE_FANCY_NEW_CLASS "whether or not to use fancy new class" ON)
+option(MY_LIBRARY_DEBUG_MODE "whether or not debug mode is activated" OFF)
 
-# Set VCPKG root directory
-set(VCPKG_ROOT $ENV{VCPKG_ROOT})
+# set headers
+set(header include/example.h)
 
-# Include VCPKG toolchain
-include(${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+# set source files
+set(src src/example.cpp)
+		
+# configure config.hpp.in
+#configure_file("config.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/config_impl.hpp")
 
-# Add library project
-set(LIB_PROJECT ${CMAKE_PROJECT_NAME}_LIB)
-add_library(${LIB_PROJECT} INTERFACE include/example.h src/example.cpp)
-#target_include_directories(${LIB_PROJECT} PRIVATE include)
-target_include_directories(${LIB_PROJECT} INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)
-# Optionally, link any dependencies here
-# target_link_libraries(${LIB_PROJECT} INTERFACE SomeDependency)
-
-install(DIRECTORY include/ DESTINATION include)
-install(TARGETS ${LIB_PROJECT}
-    EXPORT ${CMAKE_PROJECT_NAME}Targets
+# define library target
+add_library(my_library ${header} ${src})
+#target_include_directories(my_library PUBLIC ${MY_LIBRARY_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(my_library PUBLIC
+                       $<BUILD_INTERFACE:${MY_LIBRARY_SOURCE_DIR}/include> # for headers when building
+					   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for config_impl.hpp when building
+                       $<INSTALL_INTERFACE:${include_dest}> # for client in install mode
+                       $<INSTALL_INTERFACE:${lib_dest}> # for config_impl.hpp in install mode
 )
 
-include(CMakePackageConfigHelpers)
 
-# Generate the package configuration file
-configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/MyCppProjectConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/MyCppProjectConfig.cmake
-    INSTALL_DESTINATION lib/cmake/MyCppProject
-)
+set(tool_dest "bin")
+set(include_dest "include/my_library-${MY_LIBRARY_VERSION}")
+set(main_lib_dest "lib/my_library-${MY_LIBRARY_VERSION}")
+set(lib_dest "${main_lib_dest}/${CMAKE_BUILD_TYPE}")
 
-# Install the package configuration file
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/MyCppProjectConfig.cmake
-    DESTINATION lib/cmake/MyCppProject
-)
+install(TARGETS my_library DESTINATION "${main_lib_dest}")
+install(FILES ${header} DESTINATION "${include_dest}")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config_impl.hpp DESTINATION "${include_dest}")
 
-export(EXPORT ${CMAKE_PROJECT_NAME}Targets
-    FILE ${CMAKE_CURRENT_BINARY_DIR}/MyCppProjectTargets.cmake
-    NAMESPACE MyCppProject::
-)
 
-# Install the exported targets file
-install(EXPORT ${CMAKE_PROJECT_NAME}Targets
-    FILE MyCppProjectTargets.cmake
-    NAMESPACE MyCppProject::
-    DESTINATION lib/cmake/MyCppProject
-)
+install(TARGETS my_library EXPORT my_library DESTINATION "${lib_dest}")
+install(EXPORT my_library DESTINATION "${lib_dest}")
 
-# Add executable project
-#add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
-#target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE include)
-#target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${LIB_PROJECT})
-
-find_package(MyCppProject_LIB REQUIRED)
-add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE MyCppProject::MyCppProject_LIB)
-
-# Setup Catch2
-#enable_testing()
-#find_package(Catch2 CONFIG REQUIRED)
-#include(CTest)
-#include(Catch)
-
-# Add test project
-#set(TEST_PROJECT ${CMAKE_PROJECT_NAME}_TEST)
-#add_executable(${TEST_PROJECT} tests/test_main.cpp tests/test_example.cpp)
-#target_include_directories(${TEST_PROJECT} PRIVATE include)
-#target_link_libraries(${TEST_PROJECT} PRIVATE Catch2::Catch2 Catch2::Catch2WithMain ${LIB_PROJECT})
-
-# Automatically discover and add tests
-#catch_discover_tests(${TEST_PROJECT})
+install(FILES my_library-config.cmake DESTINATION ${main_lib_dest})
+install(EXPORT ...)

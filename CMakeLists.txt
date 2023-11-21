@@ -6,42 +6,65 @@ set(MY_LIBRARY_VERSION_MAJOR 1 CACHE STRING "major version" FORCE)
 set(MY_LIBRARY_VERSION_MINOR 0 CACHE STRING "minor version" FORCE)
 set(MY_LIBRARY_VERSION ${MY_LIBRARY_VERSION_MAJOR}.${MY_LIBRARY_VERSION_MINOR} CACHE STRING "version" FORCE)
 
-# some options
-option(MY_LIBRARY_USE_FANCY_NEW_CLASS "whether or not to use fancy new class" ON)
-option(MY_LIBRARY_DEBUG_MODE "whether or not debug mode is activated" OFF)
+set(MY_CPP_PROJECT_INC_INSTALL_DIR "include")
+set(MY_CPP_PROJECT_RUNTIME_INSTALL_DIR   "bin")
+set(MY_CPP_PROJECT_LIBRARY_INSTALL_DIR   "bin")
+set(MY_CPP_PROJECT_ARCHIVE_INSTALL_DIR   "lib")
+set(MY_CPP_PROJECT_FRAMEWORK_INSTALL_DIR "bin")
+set(MY_CPP_PROJECT_CMAKE_CONFIG_INSTALL_DIR "share/MyCppProject/cmake")
+set(MY_CPP_PROJECT_ADDITIONAL_FILES_INSTALL_DIR "share/MyCppProject")
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # set headers
 set(header include/example.h)
 
 # set source files
 set(src src/example.cpp)
-		
-# configure config.hpp.in
-#configure_file("config.hpp.in" "${CMAKE_CURRENT_BINARY_DIR}/config_impl.hpp")
 
 # define library target
-add_library(my_library ${header} ${src})
-#target_include_directories(my_library PUBLIC ${MY_LIBRARY_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(my_library PUBLIC
-                       $<BUILD_INTERFACE:${MY_LIBRARY_SOURCE_DIR}/include> # for headers when building
-					   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> # for config_impl.hpp when building
-                       $<INSTALL_INTERFACE:${include_dest}> # for client in install mode
-                       $<INSTALL_INTERFACE:${lib_dest}> # for config_impl.hpp in install mode
+add_library(MyCppProject ${header} ${src})
+
+target_include_directories(MyCppProject PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> 
+    $<INSTALL_INTERFACE:${MY_CPP_PROJECT_INC_INSTALL_DIR}> 
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_compile_definitions(MyCppProject PUBLIC
+                            MY_CPP_PROJECT=1
+                            MY_CPP_PROJECT_VERSION_MAJOR=${MY_LIBRARY_VERSION_MAJOR}
+                            MY_CPP_PROJECT_VERSION_MINOR=${MY_LIBRARY_VERSION_MINOR}
 )
 
+set_target_properties(MyCppProject PROPERTIES
+                                       OUTPUT_NAME "MyCppProject-${MY_LIBRARY_VERSION}"
+                                       POSITION_INDEPENDENT_CODE ON
+)
 
-set(tool_dest "bin")
-set(include_dest "include/my_library-${MY_LIBRARY_VERSION}")
-set(main_lib_dest "lib/my_library-${MY_LIBRARY_VERSION}")
-set(lib_dest "${main_lib_dest}/${CMAKE_BUILD_TYPE}")
+install(TARGETS MyCppProject EXPORT MyCppProjectTargets
+        RUNTIME       DESTINATION ${MY_CPP_PROJECT_RUNTIME_INSTALL_DIR}
+        LIBRARY       DESTINATION ${MY_CPP_PROJECT_LIBRARY_INSTALL_DIR}
+        ARCHIVE       DESTINATION ${MY_CPP_PROJECT_ARCHIVE_INSTALL_DIR}
+        FRAMEWORK     DESTINATION ${MY_CPP_PROJECT_FRAMEWORK_INSTALL_DIR}
+)
 
-install(TARGETS my_library DESTINATION "${main_lib_dest}")
-install(FILES ${header} DESTINATION "${include_dest}")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config_impl.hpp DESTINATION "${include_dest}")
+include(CMakePackageConfigHelpers)
+set(version_file "${CMAKE_CURRENT_BINARY_DIR}/cmake/MyCppProject-config-version.cmake")
+write_basic_package_version_file(${version_file}
+                                 VERSION ${MY_LIBRARY_VERSION}
+                                 COMPATIBILITY AnyNewerVersion)
 
+install(FILES ${header} DESTINATION ${MY_CPP_PROJECT_INC_INSTALL_DIR})
 
-install(TARGETS my_library EXPORT my_library DESTINATION "${lib_dest}")
-install(EXPORT my_library DESTINATION "${lib_dest}")
+install(EXPORT MyCppProjectTargets DESTINATION ${MY_CPP_PROJECT_CMAKE_CONFIG_INSTALL_DIR}
+                                       FILE MyCppProject-config.cmake
+)
 
-install(FILES my_library-config.cmake DESTINATION ${main_lib_dest})
-install(EXPORT ...)
+# Add executable project
+add_executable(${CMAKE_PROJECT_NAME}_exe src/main.cpp)
+target_include_directories(${CMAKE_PROJECT_NAME}_exe PRIVATE include)
+target_link_libraries(${CMAKE_PROJECT_NAME}_exe PRIVATE MyCppProject)
+
+# on your build folder run the following command to be able to find this package with find_package
+# cmake --build . --target install
